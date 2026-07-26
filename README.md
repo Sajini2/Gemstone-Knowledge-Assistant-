@@ -78,7 +78,7 @@ graph TD
 
 6. **Launch the Streamlit Web Application**:
    ```bash
-   streamlit run app/streamlit_app.py
+   python -m streamlit run app/streamlit_app.py
    ```
 
 ---
