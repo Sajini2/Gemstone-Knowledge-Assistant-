@@ -6,32 +6,35 @@ An Agentic AI RAG Application for Gemstone Domain Knowledge Retrieval, Classific
 
 ## Project Description
 
-The **Gemstone Knowledge Assistant** is an agentic Retrieval-Augmented Generation (RAG) system built for gemological domain question-answering. It leverages a two-agent architecture (`QueryAgent` and `GemstoneAgent`) powered by Groq LLMs and a persistent ChromaDB vector store containing 20 curated reference documents covering Rubies, Sapphires, Moonstones, and Sri Lankan gemology.
+The **Gemstone Knowledge Assistant** is an agentic Retrieval-Augmented Generation (RAG) system built for gemological domain question-answering. It leverages a specialized **4-Agent Architecture** (`ClassifierAgent`, `PlannerAgent`, `RetrievalAgent`, and `SynthesizerAgent`) powered by Groq LLMs and a persistent ChromaDB vector store containing 20 curated reference documents covering Rubies, Sapphires, Moonstones, and Sri Lankan gemology.
 
 The system intelligently classifies user intent, formulates optimal vector search queries, fetches relevant text chunks, synthesizes grounded answers with document citations, and gracefully redirects off-topic questions without hallucinating.
 
 ---
 
-## Architecture Diagram
+## 4-Agent Architecture Diagram
 
 ```mermaid
 graph TD
     User([User / Browser]) <--> UI[Streamlit Web App: app/streamlit_app.py]
     UI <--> Orch[Agent Orchestrator: app/orchestrator.py]
     
-    subgraph Multi-Agent System
-        Orch --> QA[QueryAgent: app/query_agent.py]
-        QA -->|Classification & Retrieval Plan| GA[GemstoneAgent: app/gemstone_agent.py]
+    subgraph Specialized 4-Agent Pipeline
+        Orch --> A1[Agent 1: ClassifierAgent]
+        A1 -->|Intent & Category Payload| A2[Agent 2: PlannerAgent]
+        A2 -->|Optimized Query & K Plan| A3[Agent 3: RetrievalAgent]
+        A3 -->|Retrieved Chunks & Sources| A4[Agent 4: SynthesizerAgent]
     end
     
     subgraph RAG & Database Layer
-        GA -->|Query & Top-K| DB[(Persistent ChromaDB: ./chroma_db)]
-        DB -->|Retrieved Chunks & Metadata| GA
+        A3 -->|Query & Top-K| DB[(Persistent ChromaDB: ./chroma_db)]
+        DB -->|Matching Chunks & Metadata| A3
     end
     
     subgraph Groq Cloud Models
-        QA -.->|Routing: gpt-oss-20b| Groq1[Groq API]
-        GA -.->|Synthesis: gpt-oss-120b| Groq2[Groq API]
+        A1 -.->|Classification: gpt-oss-20b| Groq1[Groq API]
+        A2 -.->|Planning: gpt-oss-20b| Groq2[Groq API]
+        A4 -.->|Synthesis: gpt-oss-120b| Groq3[Groq API]
     end
 ```
 
@@ -85,9 +88,9 @@ graph TD
 
 ## Model Comparison Table
 
-| Feature / Metric | Query Routing & Planning (`openai/gpt-oss-20b`) | Answer Generation & RAG Synthesis (`openai/gpt-oss-120b`) |
+| Feature / Metric | Agent 1 & Agent 2: Routing & Planning (`openai/gpt-oss-20b`) | Agent 4: Answer Synthesis (`openai/gpt-oss-120b`) |
 | :--- | :--- | :--- |
-| **Primary Role** | Intent classification (`ruby`, `sapphire`, `moonstone`, `sri_lankan_gems`, `off_topic`), query rewriting, and `k` planning | In-context synthesis, fact extraction, and source-grounded response generation |
+| **Primary Role** | Intent classification (`ruby`, `sapphire`, `moonstone`, `sri_lankan_gems`, `off_topic`), search query rewriting, and `k` planning | In-context synthesis, fact extraction, and source-grounded response generation |
 | **Latency** | **Ultra-Low (~100-200 ms)** — Optimized for fast lightweight decision making | **Moderate (~500-800 ms)** — Balanced for complex multi-chunk reasoning |
 | **Token Cost** | Extremely low resource footprint per request | Higher token capacity allocation for deep generation |
 | **Context Window** | 8,192 tokens | 32,768 tokens (handles large retrieved context blocks) |
@@ -95,7 +98,7 @@ graph TD
 
 ---
 
-## Agent-to-Agent Sequence Diagram
+## 4-Agent Sequence Diagram
 
 ```mermaid
 sequenceDiagram
@@ -103,28 +106,39 @@ sequenceDiagram
     actor User
     participant App as Streamlit UI (streamlit_app.py)
     participant Orch as Orchestrator (orchestrator.py)
-    participant QA as QueryAgent (query_agent.py)
-    participant GA as GemstoneAgent (gemstone_agent.py)
+    participant A1 as Agent 1: ClassifierAgent
+    participant A2 as Agent 2: PlannerAgent
+    participant A3 as Agent 3: RetrievalAgent
+    participant A4 as Agent 4: SynthesizerAgent
     participant VectorDB as ChromaDB (chroma_db)
     participant Groq as Groq LLM API
 
     User->>App: Submits question ("What is Ruby?")
     App->>Orch: ask(question)
-    Orch->>QA: process(question)
-    QA->>Groq: Classify & plan retrieval (gpt-oss-20b)
-    Groq-->>QA: JSON {category, retrieval_query, k, needs_retrieval}
-    QA-->>Orch: Return QueryPayload
+    Orch->>A1: process(question)
+    A1->>Groq: Classify intent (gpt-oss-20b)
+    Groq-->>A1: {category, is_off_topic}
+    A1-->>Orch: Payload 1
     
-    alt is Off-Topic (needs_retrieval == false)
-        Orch->>GA: process(QueryPayload)
-        GA-->>Orch: Return Polite Redirect Response (No LLM/Vector call)
-    else is Gemstone Query (needs_retrieval == true)
-        Orch->>GA: process(QueryPayload)
-        GA->>VectorDB: retrieve(retrieval_query, k)
-        VectorDB-->>GA: Top-K Document Chunks & Metadata
-        GA->>Groq: Synthesize answer with context (gpt-oss-120b)
-        Groq-->>GA: Grounded Answer String
-        GA-->>Orch: Return Response {answer, sources, category}
+    Orch->>A2: process(Payload 1)
+    alt is Off-Topic
+        A2-->>Orch: Skip planning (retrieval_query="", k=0)
+        Orch->>A3: process(Payload 2)
+        A3-->>Orch: Empty chunks (sources=[])
+        Orch->>A4: process(Payload 3)
+        A4-->>Orch: Return Polite Redirect Response (No LLM/Vector call)
+    else is Gemstone Query
+        A2->>Groq: Optimize query & plan k (gpt-oss-20b)
+        Groq-->>A2: {retrieval_query, k}
+        A2-->>Orch: Payload 2
+        Orch->>A3: process(Payload 2)
+        A3->>VectorDB: retrieve(retrieval_query, k)
+        VectorDB-->>A3: Top-K Document Chunks & Metadata
+        A3-->>Orch: Payload 3 (chunks + sources)
+        Orch->>A4: process(Payload 3)
+        A4->>Groq: Synthesize answer with context (gpt-oss-120b)
+        Groq-->>A4: Grounded Answer String
+        A4-->>Orch: Payload 4 {answer, sources, category}
     end
     
     Orch-->>App: Final Response Dictionary

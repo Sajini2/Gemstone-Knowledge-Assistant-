@@ -83,10 +83,12 @@ def main():
     with st.sidebar:
         st.header("About")
         st.info(
-            "This application uses a multi-agent RAG pipeline to answer gemstone questions:\n\n"
-            "- **QueryAgent**: Classifies questions and plans retrieval.\n"
-            "- **GemstoneAgent**: Performs ChromaDB vector retrieval and synthesizes answers.\n"
-            "- **Knowledge Base**: 20 factual reference documents."
+            "This application uses a specialized **4-Agent RAG System**:\n\n"
+            "- **ClassifierAgent**: Intent & domain classification.\n"
+            "- **PlannerAgent**: Query optimization & search strategy.\n"
+            "- **RetrievalAgent**: ChromaDB vector search & context extraction.\n"
+            "- **SynthesizerAgent**: Answer synthesis, source citation, & off-topic guard.\n\n"
+            "**Knowledge Base**: 20 factual reference documents."
         )
         st.markdown("---")
         st.subheader("Sample Queries")

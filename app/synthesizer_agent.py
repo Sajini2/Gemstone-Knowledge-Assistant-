@@ -3,6 +3,13 @@ Gemstone Knowledge Assistant - Agent 4: SynthesizerAgent
 Task: RAG Response Synthesis, Factual Grounding, and Off-Topic Filtering.
 """
 
+import sys
+import os
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
 from typing import Dict, Any, List
 from app.config import get_api_key
 
