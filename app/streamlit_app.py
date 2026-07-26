@@ -114,6 +114,55 @@ st.markdown("""
         margin-bottom: 1.5rem;
     }
 
+    /* Executive Markdown Table & Typography Styling */
+    .stMarkdown table {
+        width: 100% !important;
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+        border-radius: 12px !important;
+        overflow: hidden !important;
+        border: 1px solid rgba(56, 189, 248, 0.3) !important;
+        margin: 1.2rem 0 !important;
+        background: rgba(15, 23, 42, 0.65) !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+    }
+    .stMarkdown th {
+        background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%) !important;
+        color: #38BDF8 !important;
+        font-family: 'Outfit', sans-serif !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        font-size: 0.78rem !important;
+        letter-spacing: 0.06em !important;
+        padding: 0.8rem 1rem !important;
+        border-bottom: 1px solid rgba(56, 189, 248, 0.3) !important;
+    }
+    .stMarkdown td {
+        padding: 0.75rem 1rem !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+        font-size: 0.92rem !important;
+        color: #F1F5F9 !important;
+        line-height: 1.6 !important;
+    }
+    .stMarkdown tr:last-child td {
+        border-bottom: none !important;
+    }
+    .stMarkdown tr:hover td {
+        background: rgba(56, 189, 248, 0.08) !important;
+    }
+    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+        font-family: 'Outfit', sans-serif !important;
+        background: linear-gradient(135deg, #38BDF8 0%, #C084FC 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-top: 1.3rem !important;
+        margin-bottom: 0.6rem !important;
+    }
+    .stMarkdown ul, .stMarkdown ol {
+        line-height: 1.75 !important;
+        color: #E2E8F0 !important;
+    }
+
     /* Dynamic Category Badges */
     .badge-ruby { background: linear-gradient(135deg, #EF4444 0%, #991B1B 100%); color: #FFFFFF; }
     .badge-sapphire { background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%); color: #FFFFFF; }
@@ -129,10 +178,10 @@ st.markdown("""
         font-size: 0.78rem;
         letter-spacing: 0.06em;
         text-transform: uppercase;
-        padding: 0.3rem 0.85rem;
+        padding: 0.35rem 0.95rem;
         border-radius: 9999px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-        margin-bottom: 0.9rem;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+        margin-bottom: 1rem;
     }
 
     /* Grounded Source Tags */
@@ -322,16 +371,12 @@ def main():
                     ])
 
                     with tab_report:
-                        st.markdown(f"""
-                        <div class="glass-card" style="padding: 1.8rem; border: 1px solid rgba(56, 189, 248, 0.2);">
-                            <span class="category-badge-pill {badge_class}">CATEGORY: {category_display}</span>
-                            <div style="font-size: 1.02rem; line-height: 1.75; color: #F8FAFC; margin-top: 0.5rem;">
-                        """, unsafe_allow_html=True)
+                        st.markdown(f'<span class="category-badge-pill {badge_class}">CATEGORY: {category_display}</span>', unsafe_allow_html=True)
                         
                         # Render the synthesized markdown answer cleanly inside Streamlit
                         st.markdown(answer)
                         
-                        st.markdown("</div></div>", unsafe_allow_html=True)
+                        st.markdown("<br>", unsafe_allow_html=True)
 
                         # Export / Download Report Option
                         report_content = f"""# Executive Gemology Report
@@ -350,6 +395,17 @@ Sources Cited: {', '.join(sources) if sources else 'None'}
                             mime="text/markdown",
                             use_container_width=True
                         )
+
+                        # Interactive Follow-up Topics Section
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        st.markdown('<div class="chip-container-label">💡 EXPLORE RELATED GEMOLOGY TOPICS</div>', unsafe_allow_html=True)
+                        q_col1, q_col2, q_col3 = st.columns(3)
+                        with q_col1:
+                            st.button("✨ Geuda Corundum", use_container_width=True, on_click=set_query, args=("How does Geuda sapphire heat treatment work?",))
+                        with q_col2:
+                            st.button("⛏️ Ratnapura Mining", use_container_width=True, on_click=set_query, args=("Tell me about Ratnapura gem mining region and illam",))
+                        with q_col3:
+                            st.button("📜 NGJA Certification", use_container_width=True, on_click=set_query, args=("How to certify gemstones with NGJA Sri Lanka?",))
 
                     with tab_sources:
                         if sources:
