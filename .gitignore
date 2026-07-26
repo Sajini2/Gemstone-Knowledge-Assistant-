@@ -11,3 +11,5 @@ ENV/
 .vscode/
 .idea/
 *.chroma/
+chroma_db/
+
