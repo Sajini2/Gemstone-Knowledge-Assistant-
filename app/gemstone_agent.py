@@ -5,11 +5,9 @@ Executes RAG context retrieval, invokes LLM answer generation, and manages off-t
 
 import os
 from typing import Dict, Any, List
-from dotenv import load_dotenv
 
 from app.rag_pipeline import retrieve
-
-load_dotenv()
+from app.config import get_api_key
 
 
 class GemstoneAgent:
@@ -26,7 +24,7 @@ class GemstoneAgent:
 
     def __init__(self, model_name: str = "openai/gpt-oss-120b"):
         self.model_name = model_name
-        self.api_key = os.getenv("GROQ_API_KEY")
+        self.api_key = get_api_key("GROQ_API_KEY")
         self.llm = None
 
         if self.api_key:
