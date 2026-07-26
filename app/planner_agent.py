@@ -106,7 +106,7 @@ class PlannerAgent:
                 "category": category,
                 "is_off_topic": False,
                 "retrieval_query": retrieval_query,
-                "k": 4
+                "k": 5
             }
 
         # LLM Retrieval Planning
@@ -121,7 +121,7 @@ Instructions:
 Return ONLY valid JSON:
 {{
   "retrieval_query": "<optimized_query>",
-  "k": 4
+  "k": 5
 }}"""
 
         try:
@@ -136,7 +136,7 @@ Return ONLY valid JSON:
             
             parsed = json.loads(content.strip())
             retrieval_query = parsed.get("retrieval_query", question)
-            k = parsed.get("k", 4)
+            k = parsed.get("k", 5)
             
             return {
                 "original_question": question,
@@ -152,5 +152,5 @@ Return ONLY valid JSON:
                 "category": category,
                 "is_off_topic": False,
                 "retrieval_query": retrieval_query,
-                "k": 4
+                "k": 5
             }

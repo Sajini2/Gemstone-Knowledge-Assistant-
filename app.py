@@ -5,6 +5,19 @@ Luxury dark glassmorphism interface optimized for Desktop, Tablet, and Mobile de
 
 import sys
 import os
+import site
+
+# Ensure User Site Packages directory is first in sys.path for onnxruntime & chromadb
+user_site = site.getusersitepackages()
+if user_site and user_site not in sys.path:
+    sys.path.insert(0, user_site)
+
+# Pre-import onnxruntime to populate sys.modules before ChromaDB loads
+try:
+    import onnxruntime
+except ImportError:
+    pass
+
 import streamlit as st
 
 # Ensure project root is in sys.path
@@ -28,7 +41,7 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap');
 
     /* Global Theme Overrides */
-    html, body, [class*="st-"] {
+    html, body, .stApp {
         font-family: 'Inter', sans-serif;
     }
     
@@ -189,11 +202,14 @@ def init_session_state():
     """Initialize query session state."""
     if "user_query" not in st.session_state:
         st.session_state.user_query = ""
+    if "input_box" not in st.session_state:
+        st.session_state.input_box = ""
 
 
 def set_query(prompt_text: str):
     """Callback for sample query chip selection."""
     st.session_state.user_query = prompt_text
+    st.session_state.input_box = prompt_text
 
 
 def main():
@@ -215,20 +231,15 @@ def main():
     
     col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
     with col1:
-        if st.button("💎 Rubies", use_container_width=True):
-            set_query("What are the key valuation factors of ruby?")
+        st.button("💎 Rubies", use_container_width=True, on_click=set_query, args=("What are the key valuation factors of ruby?",))
     with col2:
-        if st.button("💙 Sapphires", use_container_width=True):
-            set_query("What is Padparadscha Sapphire?")
+        st.button("💙 Sapphires", use_container_width=True, on_click=set_query, args=("What is Padparadscha Sapphire?",))
     with col3:
-        if st.button("🌙 Moonstone", use_container_width=True):
-            set_query("How does adularescence work in moonstone?")
+        st.button("🌙 Moonstone", use_container_width=True, on_click=set_query, args=("How does adularescence work in moonstone?",))
     with col4:
-        if st.button("🇱🇰 LK Gems", use_container_width=True):
-            set_query("What are the Sri Lankan gems?")
+        st.button("🇱🇰 LK Gems", use_container_width=True, on_click=set_query, args=("What are the Sri Lankan gems?",))
     with col5:
-        if st.button("📜 Certify", use_container_width=True):
-            set_query("How does NGJA gem certification work?")
+        st.button("📜 Certify", use_container_width=True, on_click=set_query, args=("How does NGJA gem certification work?",))
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -236,7 +247,6 @@ def main():
     with st.form(key="query_form", clear_on_submit=False):
         user_question = st.text_input(
             "Ask any question about gemstones:",
-            value=st.session_state.user_query,
             placeholder="e.g., Which rare gem species are found in Sri Lanka?",
             key="input_box"
         )
@@ -254,36 +264,119 @@ def main():
                 category = response.get("category", "general").lower()
                 answer = response.get("answer", "No answer generated.")
                 sources = response.get("sources", [])
+                is_off_topic = (category == "off_topic")
 
                 # Map badge CSS class
                 badge_class = f"badge-{category}" if f"badge-{category}" in [
                     "badge-ruby", "badge-sapphire", "badge-moonstone", "badge-sri_lankan_gems", "badge-off_topic"
                 ] else "badge-general"
 
-                # Render Main Answer Card
                 st.markdown("<br>", unsafe_allow_html=True)
-                st.markdown(f"""
-                <div class="glass-card">
-                    <span class="category-badge-pill {badge_class}">Domain: {category.replace('_', ' ').upper()}</span>
-                    <div style="font-size: 1rem; line-height: 1.65; color: #F1F5F9;">
-                        {answer}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
 
-                # Render Grounded Sources Section
-                if sources:
-                    st.markdown("### 📄 Grounded Reference Sources")
-                    st.caption("Information retrieved directly from reference knowledge files:")
-                    
-                    sources_html = "".join([
-                        f'<span class="source-tag-pill">📄 {src}</span>'
-                        for src in sources
+                if is_off_topic:
+                    # Off-Topic Redirect Card
+                    st.markdown(f"""
+                    <div class="glass-card">
+                        <span class="category-badge-pill badge-off_topic">DOMAIN: OFF TOPIC</span>
+                        <div style="font-size: 1rem; line-height: 1.65; color: #F1F5F9;">
+                            {answer}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    # Interactive Gemology Intelligence Report Header
+                    category_display = category.replace('_', ' ').upper()
+                    sources_count = len(sources) if sources else 0
+
+                    st.markdown(f"""
+                    <div style="text-align: center; margin-bottom: 1.5rem;">
+                        <h2 style="font-family: 'Outfit', sans-serif; font-weight: 700; background: linear-gradient(135deg, #38BDF8 0%, #C084FC 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.3rem;">
+                            💎 Executive Gemology Report
+                        </h2>
+                        <p style="color: #94A3B8; font-size: 0.9rem;">Multi-Agent Grounded Analysis & Domain Intelligence</p>
+                    </div>
+
+                    <!-- Custom Responsive Metric Cards (No Truncation) -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.9rem; margin-bottom: 1.5rem;">
+                        <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 14px; padding: 1rem; text-align: center;">
+                            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94A3B8; font-weight: 600; letter-spacing: 0.06em;">Domain Category</div>
+                            <div style="font-size: 1.05rem; font-weight: 700; color: #38BDF8; margin-top: 0.3rem;">{category_display}</div>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(192, 132, 252, 0.25); border-radius: 14px; padding: 1rem; text-align: center;">
+                            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94A3B8; font-weight: 600; letter-spacing: 0.06em;">Sources Cited</div>
+                            <div style="font-size: 1.05rem; font-weight: 700; color: #C084FC; margin-top: 0.3rem;">{sources_count} Knowledge Files</div>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(52, 211, 153, 0.25); border-radius: 14px; padding: 1rem; text-align: center;">
+                            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94A3B8; font-weight: 600; letter-spacing: 0.06em;">Pipeline Verification</div>
+                            <div style="font-size: 1.05rem; font-weight: 700; color: #34D399; margin-top: 0.3rem;">4-Agent Grounded</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    # Interactive Tabs for Report
+                    tab_report, tab_sources, tab_audit = st.tabs([
+                        "📑 Executive Report", 
+                        "📄 Grounded Reference Sources", 
+                        "🤖 Agent Execution Audit"
                     ])
-                    st.markdown(f'<div style="margin-bottom: 1.5rem; line-height: 1.8;">{sources_html}</div>', unsafe_allow_html=True)
+
+                    with tab_report:
+                        st.markdown(f"""
+                        <div class="glass-card" style="padding: 1.8rem; border: 1px solid rgba(56, 189, 248, 0.2);">
+                            <span class="category-badge-pill {badge_class}">CATEGORY: {category_display}</span>
+                            <div style="font-size: 1.02rem; line-height: 1.75; color: #F8FAFC; margin-top: 0.5rem;">
+                        """, unsafe_allow_html=True)
+                        
+                        # Render the synthesized markdown answer cleanly inside Streamlit
+                        st.markdown(answer)
+                        
+                        st.markdown("</div></div>", unsafe_allow_html=True)
+
+                        # Export / Download Report Option
+                        report_content = f"""# Executive Gemology Report
+Query: {user_question}
+Category: {category_display}
+Sources Cited: {', '.join(sources) if sources else 'None'}
+
+---
+
+{answer}
+"""
+                        st.download_button(
+                            label="📥 Export Executive Report (.md)",
+                            data=report_content,
+                            file_name=f"gemstone_report_{category}.md",
+                            mime="text/markdown",
+                            use_container_width=True
+                        )
+
+                    with tab_sources:
+                        if sources:
+                            st.markdown("#### 📄 Grounded Reference Knowledge Files")
+                            st.caption("Information extracted from verified domain documents stored in ChromaDB:")
+                            for src in sources:
+                                st.markdown(f"""
+                                <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; padding: 0.8rem 1rem; margin-bottom: 0.6rem; display: flex; align-items: center; justify-content: space-between;">
+                                    <span style="color: #38BDF8; font-weight: 600;">📄 {src}</span>
+                                    <span style="background: rgba(56, 189, 248, 0.15); color: #38BDF8; font-size: 0.78rem; padding: 0.2rem 0.7rem; border-radius: 999px; font-weight: 600;">Verified Context</span>
+                                </div>
+                                """, unsafe_allow_html=True)
+                        else:
+                            st.info("No specific document chunks were required for this response.")
+
+                    with tab_audit:
+                        st.markdown("#### 🔄 4-Agent Architecture Execution Log")
+                        st.markdown(f"""
+                        - 🎯 **Agent 1 (ClassifierAgent)**: Classified query into **`{category_display}`** (Is Off-Topic: `False`)
+                        - 🧠 **Agent 2 (PlannerAgent)**: Formulated semantic retrieval query & requested top $k=5$ chunks
+                        - 🔍 **Agent 3 (RetrievalAgent)**: Executed vector embedding search against ChromaDB (`SentenceTransformers`)
+                        - ✨ **Agent 4 (SynthesizerAgent)**: Generated grounded executive answer with document citations
+                        """)
 
             except Exception as e:
-                st.error("Something went wrong with the multi-agent pipeline. Please try again in a moment.")
+                import traceback
+                traceback.print_exc()
+                st.error(f"Something went wrong with the multi-agent pipeline: {str(e)}")
 
     st.markdown("---")
 

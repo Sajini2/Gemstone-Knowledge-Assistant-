@@ -31,6 +31,8 @@ Thumbs.db
 # Vector Database Persistence
 *.chroma/
 chroma_db/
+chroma_db_v2/
+diagnose.py
 
 # Temporary PDF downloads & logs
 *.pdf

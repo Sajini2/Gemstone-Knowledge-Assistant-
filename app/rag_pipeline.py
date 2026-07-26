@@ -3,7 +3,15 @@ Gemstone Knowledge Assistant - RAG Pipeline Module
 Handles document loading, chunking, embedding generation, ChromaDB vector persistence, and retrieval.
 """
 
+import sys
 import os
+import site
+
+# Ensure User Site Packages directory is first in sys.path for onnxruntime & chromadb
+user_site = site.getusersitepackages()
+if user_site and user_site not in sys.path:
+    sys.path.insert(0, user_site)
+
 from typing import List, Dict, Any
 import chromadb
 from chromadb.utils import embedding_functions
@@ -17,8 +25,23 @@ COLLECTION_NAME = "gemstone_knowledge_base"
 
 
 def get_embedding_function():
-    """Returns local ONNX all-MiniLM-L6-v2 embedding function (no API cost)."""
-    return embedding_functions.ONNXMiniLM_L6_V2()
+    """
+    Returns local embedding function with robust fallbacks:
+    1. SentenceTransformerEmbeddingFunction ("all-MiniLM-L6-v2")
+    2. ONNXMiniLM_L6_V2
+    3. DefaultEmbeddingFunction (ChromaDB Built-in)
+    """
+    try:
+        return embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+    except Exception:
+        pass
+
+    try:
+        return embedding_functions.ONNXMiniLM_L6_V2()
+    except Exception:
+        pass
+
+    return embedding_functions.DefaultEmbeddingFunction()
 
 
 def get_chroma_client():
@@ -58,85 +81,93 @@ def load_and_chunk_documents() -> tuple[List[str], List[Dict[str, Any]], List[st
             text = f.read().strip()
 
         chunks = splitter.split_text(text)
-        for idx, chunk in enumerate(chunks):
+
+        for idx, chunk_text in enumerate(chunks):
             chunk_counter += 1
-            documents.append(chunk)
-            metadatas.append({"source": filename, "chunk_index": idx})
-            ids.append(f"{filename}_chunk_{idx}")
+            chunk_id = f"doc_{filename}_chunk_{idx+1}"
+            
+            documents.append(chunk_text)
+            metadatas.append({
+                "source": filename,
+                "chunk_index": idx + 1,
+                "total_chunks": len(chunks)
+            })
+            ids.append(chunk_id)
 
     return documents, metadatas, ids
 
 
-def build_or_get_index():
-    """Populates ChromaDB with document chunks if collection is empty or creates index."""
+def build_vector_store() -> int:
+    """
+    Chunks all documents in documents/ and populates ChromaDB persistent collection.
+    
+    Returns:
+        Int count of indexed document chunks.
+    """
+    documents, metadatas, ids = load_and_chunk_documents()
     client = get_chroma_client()
     ef = get_embedding_function()
-    
+
+    # Get or create collection
     collection = client.get_or_create_collection(
         name=COLLECTION_NAME,
-        embedding_function=ef
-    )
-    
-    return collection
-
-
-def index_documents():
-    """Executes document loading, chunking, and persists vectors to ChromaDB."""
-    client = get_chroma_client()
-    ef = get_embedding_function()
-    
-    # Reset/recreate collection for fresh indexing
-    try:
-        client.delete_collection(COLLECTION_NAME)
-    except Exception:
-        pass
-
-    collection = client.create_collection(
-        name=COLLECTION_NAME,
-        embedding_function=ef
+        embedding_function=ef,
+        metadata={"description": "Gemstone domain knowledge base chunks"}
     )
 
-    documents, metadatas, ids = load_and_chunk_documents()
-    
-    if documents:
-        collection.add(
-            documents=documents,
-            metadatas=metadatas,
-            ids=ids
+    # Upsert chunks in batches
+    batch_size = 50
+    for i in range(0, len(documents), batch_size):
+        end_idx = min(i + batch_size, len(documents))
+        collection.upsert(
+            documents=documents[i:end_idx],
+            metadatas=metadatas[i:end_idx],
+            ids=ids[i:end_idx]
         )
-    
-    return len(documents)
+
+    return collection.count()
+
+
+# Alias for backwards compatibility
+index_documents = build_vector_store
 
 
 def retrieve(query: str, k: int = 4) -> List[Dict[str, Any]]:
     """
-    Retrieves the top-k most relevant text chunks from ChromaDB for a given query.
+    Retrieves top-k most relevant document chunks for a query from ChromaDB.
     
     Args:
-        query: Search query string.
-        k: Number of relevant chunks to retrieve (default: 4).
+        query: User or rephrased search query string.
+        k: Number of top chunks to retrieve (default: 4).
         
     Returns:
-        List of dictionaries containing 'content', 'source', and 'distance'.
+        List of dicts: [{content, source, chunk_index, distance}]
     """
     client = get_chroma_client()
     ef = get_embedding_function()
-    
+
     try:
         collection = client.get_collection(
             name=COLLECTION_NAME,
             embedding_function=ef
         )
+        results = collection.query(
+            query_texts=[query],
+            n_results=k,
+            include=["documents", "metadatas", "distances"]
+        )
     except Exception as e:
-        raise RuntimeError(
-            "ChromaDB collection not found. Please run 'python app/build_index.py' first."
-        ) from e
-
-    results = collection.query(
-        query_texts=[query],
-        n_results=k,
-        include=["documents", "metadatas", "distances"]
-    )
+        # If collection doesn't exist, build vector index on the fly
+        build_vector_store()
+        collection = client.get_collection(
+            name=COLLECTION_NAME,
+            embedding_function=ef
+        )
+        results = collection.query(
+            query_texts=[query],
+            n_results=k,
+            include=["documents", "metadatas", "distances"]
+        )
 
     retrieved_chunks = []
     if results and results.get("documents") and len(results["documents"]) > 0:

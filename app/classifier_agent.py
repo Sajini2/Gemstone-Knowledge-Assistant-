@@ -63,32 +63,41 @@ class ClassifierAgent:
         """
         q_lower = question.lower()
 
+        # Pre-check for clear gemstone domain keywords
+        gemstone_keywords = [
+            "gem", "gems", "gemstone", "gemstones", "jewel", "jewels", "mineral", "minerals",
+            "ruby", "rubies", "sapphire", "sapphires", "moonstone", "moonstones", "sri lanka",
+            "ceylon", "ratnapura", "ngja", "certif", "corundum", "feldspar", "spinel", "beryl"
+        ]
+        has_gem_keyword = any(kw in q_lower for kw in gemstone_keywords)
+
         # Offline / Fallback Classification
         if not self.llm:
-            if any(term in q_lower for term in ["france", "capital", "weather", "recipe", "math", "president", "code"]):
-                if not any(gem in q_lower for gem in ["ruby", "sapphire", "moonstone", "gem", "jewel"]):
-                    return {"original_question": question, "category": "off_topic", "is_off_topic": True}
+            if not has_gem_keyword and any(term in q_lower for term in ["france", "capital", "weather", "recipe", "math", "president", "code", "python"]):
+                return {"original_question": question, "category": "off_topic", "is_off_topic": True}
 
-            if "ruby" in q_lower or "pigeon" in q_lower or "spinel" in q_lower:
+            if "ruby" in q_lower or "rubies" in q_lower or "pigeon" in q_lower:
                 cat = "ruby"
-            elif "sapphire" in q_lower or "padparadscha" in q_lower:
+            elif "sapphire" in q_lower or "sapphires" in q_lower or "padparadscha" in q_lower:
                 cat = "sapphire"
-            elif "moonstone" in q_lower or "adularescence" in q_lower:
+            elif "moonstone" in q_lower or "moonstones" in q_lower or "adularescence" in q_lower:
                 cat = "moonstone"
-            elif any(term in q_lower for term in ["sri lanka", "ceylon", "ratnapura", "ngja", "certif", "ethical", "mining"]):
+            elif has_gem_keyword or any(term in q_lower for term in ["sri lanka", "ceylon", "ratnapura", "ngja", "certif", "ethical", "mining"]):
                 cat = "sri_lankan_gems"
             else:
                 cat = "off_topic"
 
             return {"original_question": question, "category": cat, "is_off_topic": (cat == "off_topic")}
 
-        # LLM Classification Prompt with Category Descriptions
-        prompt = f"""Classify the user question into ONE of these specific categories:
+        # LLM Classification Prompt with Clear Domain Guidance
+        prompt = f"""Classify the user question into EXACTLY ONE of these categories:
 - "ruby": questions about ruby corundum, origins, inclusions, or valuation.
-- "sapphire": questions about sapphire, padparadscha, or star sapphires.
+- "sapphire": questions about sapphire varieties, padparadscha, or star sapphires.
 - "moonstone": questions about moonstone, adularescence, or feldspar.
-- "sri_lankan_gems": questions about Sri Lankan gems, Ratnapura mining, Ceylon trade, or gem certification.
-- "off_topic": questions unrelated to gemstones (e.g., capital cities, math, weather, coding).
+- "sri_lankan_gems": questions about Sri Lankan gems, gem types/species, Ratnapura mining, Ceylon gem trade, or gem certification.
+- "off_topic": ONLY questions completely unrelated to gemstones or gemology (e.g. capital cities, sports, weather, cooking, programming).
+
+CRITICAL RULE: Any question asking about gems, gemstones, gem types, species, mining, minerals, or Sri Lankan gemology is ON-TOPIC (classify as "sri_lankan_gems" if not ruby/sapphire/moonstone specific).
 
 User Question: "{question}"
 
@@ -108,7 +117,11 @@ Return ONLY valid JSON:
                 content = content[:-3]
             
             parsed = json.loads(content.strip())
-            category = parsed.get("category", "off_topic")
+            category = parsed.get("category", "off_topic").lower()
+
+            # Override if question has gemstone keywords but LLM misclassified
+            if category == "off_topic" and has_gem_keyword:
+                category = "sri_lankan_gems"
             
             return {
                 "original_question": question,
@@ -116,4 +129,5 @@ Return ONLY valid JSON:
                 "is_off_topic": (category == "off_topic")
             }
         except Exception:
-            return {"original_question": question, "category": "off_topic", "is_off_topic": True}
+            cat = "sri_lankan_gems" if has_gem_keyword else "off_topic"
+            return {"original_question": question, "category": cat, "is_off_topic": (cat == "off_topic")}
