@@ -75,15 +75,21 @@ class ClassifierAgent:
                 cat = "sapphire"
             elif "moonstone" in q_lower or "adularescence" in q_lower:
                 cat = "moonstone"
-            elif any(term in q_lower for term in ["sri lanka", "ceylon", "ratnapura", "ngja", "certification", "ethical", "mining"]):
+            elif any(term in q_lower for term in ["sri lanka", "ceylon", "ratnapura", "ngja", "certif", "ethical", "mining"]):
                 cat = "sri_lankan_gems"
             else:
                 cat = "off_topic"
 
             return {"original_question": question, "category": cat, "is_off_topic": (cat == "off_topic")}
 
-        # LLM Classification
-        prompt = f"""Classify the user question into one of: ["ruby", "sapphire", "moonstone", "sri_lankan_gems", "off_topic"].
+        # LLM Classification Prompt with Category Descriptions
+        prompt = f"""Classify the user question into ONE of these specific categories:
+- "ruby": questions about ruby corundum, origins, inclusions, or valuation.
+- "sapphire": questions about sapphire, padparadscha, or star sapphires.
+- "moonstone": questions about moonstone, adularescence, or feldspar.
+- "sri_lankan_gems": questions about Sri Lankan gems, Ratnapura mining, Ceylon trade, or gem certification.
+- "off_topic": questions unrelated to gemstones (e.g., capital cities, math, weather, coding).
+
 User Question: "{question}"
 
 Return ONLY valid JSON:

@@ -32,12 +32,16 @@ def run_agent_tests():
     for idx, question in enumerate(TEST_QUESTIONS, 1):
         print(f"\n>>> TEST CASE {idx}/{len(TEST_QUESTIONS)} <<<")
         response = ask(question)
+        answer_text = response.get("answer", "")
+        # Safe ASCII encoding preview for Windows console compatibility
+        safe_preview = answer_text[:120].encode('ascii', errors='replace').decode('ascii') + "..."
+        
         results.append({
             "test_case": idx,
             "question": question,
             "category": response.get("category"),
             "sources": response.get("sources", []),
-            "answer_preview": response.get("answer", "")[:120] + "..."
+            "answer_preview": safe_preview
         })
 
     print("\n" + "=" * 80)
