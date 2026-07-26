@@ -6,6 +6,10 @@
 [![AI Architecture](https://img.shields.io/badge/Architecture-4--Agent%20Sequential%20RAG-purple.svg)](#4-agent-architecture-diagram)
 [![LLM Provider](https://img.shields.io/badge/LLM-Groq%20Cloud-orange.svg)](https://groq.com)
 
+<p align="center">
+  <img src="assets/ui.png" alt="Gemstone Knowledge Assistant User Interface" width="100%" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
+</p>
+
 An **Agentic AI Retrieval-Augmented Generation (RAG) System** specialized for gemological domain intelligence, species classification, geological analysis, and market valuation. 
 
 🌐 **Live Application URL**: [https://gem-knowledge.streamlit.app/](https://gem-knowledge.streamlit.app/)
