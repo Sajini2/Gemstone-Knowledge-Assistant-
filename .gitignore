@@ -1,15 +1,43 @@
+# Environment variables & Secret keys
 .env
+.env.*
+.streamlit/secrets.toml
+
+# Python cache & compiled files
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.pytest_cache/
+
+# Jupyter Notebook checkpoints
 .ipynb_checkpoints/
+
+# Virtual Environments
 venv/
 .venv/
 env/
 ENV/
+
+# IDE & Editor Configs
 .vscode/
 .idea/
+*.swp
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# Vector Database Persistence
 *.chroma/
 chroma_db/
 
+# Temporary PDF downloads & logs
+*.pdf
+*.log
+documents/*.pdf
+
+# Build & Package directories
+build/
+dist/
+*.egg-info/
