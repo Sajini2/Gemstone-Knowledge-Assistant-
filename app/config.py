@@ -1,42 +1,39 @@
 """
-Gemstone Knowledge Assistant - Central Configuration & Secrets Management
-Provides helper for API key resolution across local environment (.env) and Streamlit Cloud (st.secrets).
+Gemstone Knowledge Assistant - Configuration Helper
+Manages environment variables, Groq API Key, OpenRouter API Key, and Streamlit secrets.
 """
 
 import os
 from dotenv import load_dotenv
 
-# Load local .env file if available
+# Load local .env file if present
 load_dotenv()
 
 
-def get_api_key(key_name: str = "GROQ_API_KEY") -> str:
+def get_api_key(key_name: str = "GROQ_API_KEY") -> str | None:
     """
-    Retrieves API key from environment variables or Streamlit secrets fallback.
-    
-    Order of preference:
-    1. OS Environment variable (via .env or system env)
-    2. Streamlit Cloud Secrets (st.secrets)
+    Retrieves API key by name from environment variables or Streamlit secrets.
+    Checks GROQ_API_KEY and OPENROUTER_API_KEY.
     
     Args:
-        key_name: Environment key name string (default: "GROQ_API_KEY").
+        key_name: Name of environment variable ("GROQ_API_KEY" or "OPENROUTER_API_KEY").
         
     Returns:
-        String API key or empty string if not configured.
+        String API key if configured, else None.
     """
-    # Check OS environment first
-    api_key = os.getenv(key_name)
-    if api_key and api_key.strip():
-        return api_key.strip()
+    # 1. Check OS Environment Variables (from .env or system environment)
+    key_value = os.getenv(key_name)
+    if key_value and key_value.strip() and not key_value.startswith("gsk_your_") and not key_value.startswith("sk-or-your_"):
+        return key_value.strip()
 
-    # Fallback to Streamlit secrets if running in Streamlit environment
+    # 2. Check Streamlit Secrets (for Streamlit Cloud or local .streamlit/secrets.toml)
     try:
         import streamlit as st
         if hasattr(st, "secrets") and key_name in st.secrets:
-            secret_val = st.secrets[key_name]
-            if secret_val and str(secret_val).strip():
-                return str(secret_val).strip()
+            val = st.secrets[key_name]
+            if val and str(val).strip():
+                return str(val).strip()
     except Exception:
         pass
 
-    return ""
+    return None

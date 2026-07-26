@@ -1,16 +1,17 @@
 """
 Gemstone Knowledge Assistant - Agent 4: SynthesizerAgent
 Task: RAG Response Synthesis, Factual Grounding, and Off-Topic Filtering.
+Supports Groq API and OpenRouter API providers.
 """
 
 import sys
 import os
-from typing import Dict, Any, List
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
+from typing import Dict, Any, List
 from app.config import get_api_key
 
 
@@ -18,6 +19,7 @@ class SynthesizerAgent:
     """
     Agent 4: SynthesizerAgent
     Consumes retrieved context chunks from RetrievalAgent and synthesizes source-grounded answers.
+    Supports Groq and OpenRouter LLMs.
     """
 
     OFF_TOPIC_RESPONSE = (
@@ -26,18 +28,32 @@ class SynthesizerAgent:
         "I cannot answer off-topic questions. Please ask a gemstone-related query!"
     )
 
-    def __init__(self, model_name: str = "openai/gpt-oss-120b"):
-        self.model_name = model_name
-        self.api_key = get_api_key("GROQ_API_KEY")
+    def __init__(self, groq_model: str = "openai/gpt-oss-120b", openrouter_model: str = "openai/gpt-4o-mini"):
+        self.groq_api_key = get_api_key("GROQ_API_KEY")
+        self.openrouter_api_key = get_api_key("OPENROUTER_API_KEY")
         self.llm = None
 
-        if self.api_key:
+        # 1. Try Groq Provider
+        if self.groq_api_key:
             try:
                 from langchain_groq import ChatGroq
                 try:
-                    self.llm = ChatGroq(model=self.model_name, groq_api_key=self.api_key, temperature=0.2)
+                    self.llm = ChatGroq(model=groq_model, groq_api_key=self.groq_api_key, temperature=0.2)
                 except Exception:
-                    self.llm = ChatGroq(model="llama-3.3-70b-versatile", groq_api_key=self.api_key, temperature=0.2)
+                    self.llm = ChatGroq(model="llama-3.3-70b-versatile", groq_api_key=self.groq_api_key, temperature=0.2)
+            except Exception:
+                self.llm = None
+
+        # 2. Try OpenRouter Provider if Groq is unavailable
+        if not self.llm and self.openrouter_api_key:
+            try:
+                from langchain_openai import ChatOpenAI
+                self.llm = ChatOpenAI(
+                    model=openrouter_model,
+                    openai_api_key=self.openrouter_api_key,
+                    openai_api_base="https://openrouter.ai/api/v1",
+                    temperature=0.2
+                )
             except Exception:
                 self.llm = None
 
