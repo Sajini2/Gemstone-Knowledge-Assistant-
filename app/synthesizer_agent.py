@@ -5,12 +5,12 @@ Task: RAG Response Synthesis, Factual Grounding, and Off-Topic Filtering.
 
 import sys
 import os
+from typing import Dict, Any, List
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from typing import Dict, Any, List
 from app.config import get_api_key
 
 
@@ -70,12 +70,15 @@ class SynthesizerAgent:
             for chunk in chunks
         ])
 
-        # Offline Fallback Synthesis
+        # Offline Fallback Synthesis across all retrieved chunks
         if not self.llm:
+            formatted_chunks = []
+            for idx, chunk in enumerate(chunks, 1):
+                formatted_chunks.append(f"**From `{chunk['source']}`**:\n{chunk['content']}")
+
             fallback_text = (
-                f"Based on reference documents ({', '.join(sources)}): "
-                f"Here is the retrieved context answering '{question}':\n"
-                f"{chunks[0]['content'] if chunks else 'No relevant context found.'}"
+                f"### Information retrieved for: \"{question}\"\n\n"
+                + "\n\n---\n\n".join(formatted_chunks)
             )
             return {
                 "answer": fallback_text,
@@ -83,10 +86,11 @@ class SynthesizerAgent:
                 "category": category
             }
 
-        # LLM Synthesis
+        # LLM Synthesis Prompt
         prompt = f"""You are the Gemstone Knowledge Assistant, an expert gemological AI.
-Answer the user question accurately based ONLY on the provided reference context documents.
-Do not invent facts. Cite key details directly from the context.
+Answer the user question accurately and comprehensively based ONLY on the provided reference context documents.
+Specifically list all relevant gemstone species, varieties, origins, features, or details requested.
+Do not invent facts not contained in the context.
 
 Context Information:
 {context_str}
@@ -103,9 +107,13 @@ Answer:"""
                 "category": category
             }
         except Exception:
+            formatted_chunks = []
+            for idx, chunk in enumerate(chunks, 1):
+                formatted_chunks.append(f"**From `{chunk['source']}`**:\n{chunk['content']}")
+
             fallback_text = (
-                f"Retrieved Context ({', '.join(sources)}):\n"
-                f"{chunks[0]['content'] if chunks else 'No context retrieved.'}"
+                f"### Information retrieved for: \"{question}\"\n\n"
+                + "\n\n---\n\n".join(formatted_chunks)
             )
             return {
                 "answer": fallback_text,

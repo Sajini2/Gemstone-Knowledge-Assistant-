@@ -5,14 +5,17 @@ Task: Retrieval Planning, Query Optimization, and Parameter Selection.
 
 import sys
 import os
+import json
+from typing import Dict, Any
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-import json
-from typing import Dict, Any
-from app.config import get_api_key
+try:
+    from app.config import get_api_key
+except ImportError:
+    from config import get_api_key
 
 
 class PlannerAgent:
@@ -35,6 +38,29 @@ class PlannerAgent:
                     self.llm = ChatGroq(model="llama-3.3-70b-versatile", groq_api_key=self.api_key, temperature=0.0)
             except Exception:
                 self.llm = None
+
+    def _fallback_plan(self, question: str, category: str) -> str:
+        """Formulates targeted semantic search query without bloated keywords."""
+        q_lower = question.lower()
+        
+        if category == "sri_lankan_gems":
+            if any(term in q_lower for term in ["gems", "species", "varieties", "found", "what are", "which"]):
+                return f"Sri Lankan unique gemstone species varieties Geuda Alexandrite Sinhalite Spinel {question}"
+            elif any(term in q_lower for term in ["certif", "ngja", "report", "testing"]):
+                return f"National Gem Jewellery Authority NGJA certification testing reports {question}"
+            elif any(term in q_lower for term in ["ratnapura", "mining", "pit", "region"]):
+                return f"Ratnapura gem mining region illam placer deposits {question}"
+            else:
+                return f"Sri Lankan gemstones species varieties {question}"
+        
+        elif category == "ruby":
+            return f"ruby corundum red inclusions origin valuation {question}"
+        elif category == "sapphire":
+            return f"sapphire corundum color varieties padparadscha star {question}"
+        elif category == "moonstone":
+            return f"moonstone adularescence feldspar meetiyagoda {question}"
+        
+        return question
 
     def process(self, classification_payload: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -61,29 +87,27 @@ class PlannerAgent:
 
         # Offline / Fallback Retrieval Query Rewriting
         if not self.llm:
-            domain_keywords = {
-                "ruby": "ruby corundum inclusions geological origin heat treatment valuation",
-                "sapphire": "sapphire color varieties padparadscha star sapphires valuation",
-                "moonstone": "moonstone adularescence feldspar meetiyagoda formation jewelry",
-                "sri_lankan_gems": "sri lanka ratnapura ngja gem certification species ethical mining"
-            }
-            prefix = domain_keywords.get(category, "gemstone")
+            retrieval_query = self._fallback_plan(question, category)
             return {
                 "original_question": question,
                 "category": category,
                 "is_off_topic": False,
-                "retrieval_query": f"{prefix} {question}",
+                "retrieval_query": retrieval_query,
                 "k": 4
             }
 
         # LLM Retrieval Planning
-        prompt = f"""You are a RAG retrieval planner. Optimize the search query for semantic vector lookup.
+        prompt = f"""You are a RAG retrieval planner. Optimize the search query for semantic vector lookup against gemstone reference documents.
 Category: "{category}"
 User Question: "{question}"
 
+Instructions:
+- Formulate a concise, focused search query targeting exact gemological terms.
+- Do NOT include unrelated topics (e.g. do not add certification or mining terms unless explicitly asked).
+
 Return ONLY valid JSON:
 {{
-  "retrieval_query": "<rephrased_optimized_query>",
+  "retrieval_query": "<optimized_query>",
   "k": 4
 }}"""
 
@@ -109,10 +133,11 @@ Return ONLY valid JSON:
                 "k": k
             }
         except Exception:
+            retrieval_query = self._fallback_plan(question, category)
             return {
                 "original_question": question,
                 "category": category,
                 "is_off_topic": False,
-                "retrieval_query": question,
+                "retrieval_query": retrieval_query,
                 "k": 4
             }
